@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Instituto MILES | Aulas gravadas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Manrope:wght@300;400;500;700;800&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <img class="brand-logo" id="brandLogo" alt="Instituto MILES">
+        </div>
+        <div class="hero-copy">
+          <p class="eyebrow">Ambiente de aulas</p>
+          <h1>Aulas gravadas</h1>
+          <p class="hero-text">Selecione uma aula, assista ao conteúdo e registre sua presença pelo QR code liberado ao final.</p>
+        </div>
+        <div class="badge" id="tokenBadge">QR válido por 60 min</div>
+      </header>
+
+      <nav class="site-tabs" aria-label="Navegação principal">
+        <button class="site-tab-button" type="button" aria-selected="true" data-site-tab="lessons">Aulas</button>
+        <button class="site-tab-button" type="button" aria-selected="false" data-site-tab="certificate">Certificado</button>
+      </nav>
+
+      <section class="lesson-list-section" id="lessonListSection">
+        <div class="section-heading">
+          <h2>Lista de aulas</h2>
+          <p>Selecione uma aula para assistir. O QR code de presença será liberado após o tempo mínimo assistido.</p>
+        </div>
+        <ul class="lesson-list" id="lessonList"></ul>
+      </section>
+
+      <section class="lesson-panels" id="lessonPanels" hidden></section>
+
+      <section class="certificate-section" id="certificateSection" hidden>
+        <div class="section-heading">
+          <h2>Emitir certificado</h2>
+          <p>Informe o CPF usado nos registros de presença. O certificado em PDF será emitido para alunos com presença em pelo menos 3 aulas.</p>
+        </div>
+
+        <form class="certificate-form" id="certificateForm" autocomplete="on" novalidate>
+          <label>
+            CPF
+            <input name="certificateCpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required>
+          </label>
+          <button type="submit">Gerar certificado em PDF</button>
+        </form>
+
+        <div class="certificate-result" id="certificateResult" hidden></div>
+        <p class="status" id="certificateStatus"></p>
+      </section>
+    </main>
+
+    <template id="lessonListTemplate">
+      <li class="lesson-list-item">
+        <div>
+          <h3 data-list-title></h3>
+          <p data-list-description></p>
+        </div>
+        <span data-list-duration></span>
+        <button type="button" data-open-lesson>Acessar aula</button>
+      </li>
+    </template>
+
+    <template id="lessonTemplate">
+      <article class="lesson lesson-panel" hidden data-panel>
+        <button class="back-button" type="button" data-back-button>Voltar à lista</button>
+
+        <div class="lesson-header">
+          <div>
+            <h2 data-title></h2>
+            <p data-description></p>
+          </div>
+          <span data-duration></span>
+        </div>
+
+        <div class="player youtube-player" hidden data-youtube-shell>
+          <div data-youtube-player></div>
+        </div>
+
+        <button class="secondary-button" type="button" data-start-button>Iniciar aula</button>
+
+        <div class="qr-panel" hidden data-qr-panel>
+          <div>
+            <h3>QR code de presença</h3>
+            <p>Escaneie para registrar a presença nesta aula.</p>
+          </div>
+          <img alt="QR code de presença" data-qr-image>
+          <a class="link-button" target="_blank" rel="noopener" data-registration-link>Abrir formulário</a>
+        </div>
+
+        <p class="status" data-status>O QR code será liberado após o tempo mínimo assistido.</p>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
