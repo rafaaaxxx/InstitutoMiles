@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title><?= appTitle ?></title>
+    <?!= include('Styles'); ?>
+  </head>
+  <body>
+    <main class="form-shell">
+      <section class="form-card">
+        <div class="form-brand">
+          <? if (logoUrl) { ?>
+            <img class="brand-logo compact" src="<?= logoUrl ?>" alt="<?= organizationName ?>">
+          <? } else { ?>
+            <div class="brand-wordmark compact">
+              <span>Instituto</span>
+              <strong>MILES</strong>
+            </div>
+          <? } ?>
+        </div>
+        <p class="eyebrow">Registro de presença</p>
+        <h1 id="pageTitle">Presença na aula</h1>
+        <p class="lead" id="pageLead"></p>
+
+        <div class="notice" id="invalidNotice" hidden></div>
+
+        <form id="attendanceForm" autocomplete="on" novalidate>
+          <input type="hidden" name="token" value="<?= token ?>">
+
+          <label>
+            CPF
+            <input name="cpf" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required>
+          </label>
+
+          <label>
+            Nome completo
+            <input name="fullName" autocomplete="name" required>
+          </label>
+
+          <label>
+            Email
+            <input name="email" type="email" autocomplete="email" required>
+          </label>
+
+          <label class="check">
+            <input name="lgpdAccepted" type="checkbox" required>
+            <span>
+              Declaro ciência de que meus dados serão utilizados por <?= organizationName ?> exclusivamente para registro de presença, controle de participação e relatórios relacionados às aulas. Em caso de dúvidas sobre o tratamento de dados pessoais, posso contatar <?= privacyContactEmail ?>.
+            </span>
+          </label>
+
+          <button type="submit">Registrar presença</button>
+        </form>
+
+        <div class="success" id="successMessage" hidden></div>
+        <p class="status" id="statusMessage"></p>
+      </section>
+    </main>
+
+    <script>
+      const INITIAL_VALIDATION = <?!= JSON.stringify(initialValidation) ?>;
+      const form = document.querySelector('#attendanceForm');
+      const pageTitle = document.querySelector('#pageTitle');
+      const pageLead = document.querySelector('#pageLead');
+      const invalidNotice = document.querySelector('#invalidNotice');
+      const statusMessage = document.querySelector('#statusMessage');
+      const successMessage = document.querySelector('#successMessage');
+      const cpfInput = form.elements.cpf;
+
+      if (INITIAL_VALIDATION.ok) {
+        pageTitle.textContent = INITIAL_VALIDATION.lessonTitle;
+        pageLead.textContent = 'Preencha os dados abaixo para registrar sua presença.';
+      } else {
+        form.hidden = true;
+        invalidNotice.hidden = false;
+        invalidNotice.textContent = INITIAL_VALIDATION.message;
+        pageLead.textContent = 'Não foi possível continuar com este QR code.';
+      }
+
+      cpfInput.addEventListener('input', () => {
+        cpfInput.value = formatCpf(cpfInput.value);
+      });
+
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        statusMessage.textContent = '';
+        successMessage.hidden = true;
+
+        if (!form.reportValidity()) {
+          return;
+        }
+
+        const payload = {
+          token: form.elements.token.value,
+          cpf: form.elements.cpf.value,
+          fullName: form.elements.fullName.value,
+          email: form.elements.email.value,
+          lgpdAccepted: form.elements.lgpdAccepted.checked,
+          userAgent: navigator.userAgent
+        };
+
+        form.querySelector('button').disabled = true;
+        statusMessage.textContent = 'Registrando presença...';
+
+        google.script.run
+          .withSuccessHandler((response) => {
+            form.hidden = true;
+            statusMessage.textContent = '';
+            successMessage.hidden = false;
+            successMessage.textContent = response.message;
+          })
+          .withFailureHandler((error) => {
+            form.querySelector('button').disabled = false;
+            statusMessage.textContent = error.message || 'Não foi possível registrar a presença.';
+          })
+          .submitAttendance(payload);
+      });
+
+      function formatCpf(value) {
+        const digits = value.replace(/\D/g, '').slice(0, 11);
+        return digits
+          .replace(/(\d{3})(\d)/, '$1.$2')
+          .replace(/(\d{3})(\d)/, '$1.$2')
+          .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+      }
+    </script>
+  </body>
+</html>
