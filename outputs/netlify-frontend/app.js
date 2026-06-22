@@ -1,50 +1,6 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyfPc6rxXnnf5RaofztEh9P03wmhRkC9D4Lzf0yNUrm--64uRzA9uMUMoHakhGY9Yto/exec';
+const BACKEND_PROXY_URL = '/.netlify/functions/apps-script-proxy';
 
-const FALLBACK_CONFIG = {
-  tokenTtlMinutes: 60,
-  organizationName: 'Instituto MILES',
-  logoUrl: 'https://drive.google.com/thumbnail?id=1PnPcVnYXnhetQ6-ax8iIBBxK8aK7L_ZQ&sz=w900',
-  lessons: [
-    {
-      id: 'aula-1',
-      title: 'Aula 1',
-      description: 'AULA 1',
-      youtubeVideoId: 'Rg-EJ8IFU8w',
-      durationLabel: '04:53',
-      watchSecondsBeforeQr: 293,
-      watchPercentRequired: 0.95
-    },
-    {
-      id: 'aula-2',
-      title: 'Aula 2',
-      description: 'AULA 2',
-      youtubeVideoId: '3LriRpfkdWE',
-      durationLabel: '05:55',
-      watchSecondsBeforeQr: 355,
-      watchPercentRequired: 0.95
-    },
-    {
-      id: 'aula-3',
-      title: 'Aula 3',
-      description: 'Descrição breve da aula 3.',
-      youtubeVideoId: 'Oj7P_fF9q64',
-      durationLabel: '02:01',
-      watchSecondsBeforeQr: 121,
-      watchPercentRequired: 0.95
-    },
-    {
-      id: 'aula-4',
-      title: 'Aula 4',
-      description: 'Descrição breve da aula 4.',
-      youtubeVideoId: '41iGTPKYFI4',
-      durationLabel: '04:59',
-      watchSecondsBeforeQr: 299,
-      watchPercentRequired: 0.95
-    }
-  ]
-};
-
-let appConfig = FALLBACK_CONFIG;
+let appConfig = null;
 const generatedTokens = new Map();
 const lessonStates = new Map();
 let youtubeApiReady = false;
@@ -72,11 +28,23 @@ document.head.appendChild(youtubeApiScript);
 
 initialize();
 
-function initialize() {
-  applyConfig(appConfig);
-  renderLessons(appConfig.lessons);
+async function initialize() {
   bindNavigation();
   bindCertificateForm();
+  lessonList.innerHTML = '<li class="lesson-list-item"><div><h3>Carregando aulas...</h3><p>Aguarde enquanto buscamos as informações atualizadas.</p></div></li>';
+
+  try {
+    const config = await callBackend('getPublicConfig');
+    if (!config.ok) {
+      throw new Error(config.message || 'Não foi possível carregar as aulas.');
+    }
+
+    appConfig = config;
+    applyConfig(appConfig);
+    renderLessons(appConfig.lessons || []);
+  } catch (error) {
+    lessonList.innerHTML = `<li class="lesson-list-item"><div><h3>Não foi possível carregar as aulas</h3><p>${escapeHtml(error.message)}</p></div></li>`;
+  }
 }
 
 function applyConfig(config) {
@@ -125,7 +93,7 @@ function bindCertificateForm() {
     certificateForm.querySelector('button').disabled = true;
     certificateStatus.textContent = 'Verificando presenças e gerando o PDF...';
 
-    callAppsScript('createCertificate', {
+    callBackend('createCertificate', {
       cpf: certificateForm.elements.certificateCpf.value
     })
       .then((response) => {
@@ -381,7 +349,7 @@ function releaseQrCode(lesson, status, qrPanel, qrImage, registrationLink) {
   }
 
   status.textContent = 'Gerando QR code...';
-  callAppsScript('createAttendanceToken', {
+  callBackend('createAttendanceToken', {
     lessonId: lesson.id
   })
     .then((response) => {
@@ -404,46 +372,27 @@ function showQr(response, status, qrPanel, qrImage, registrationLink) {
   status.textContent = 'QR code liberado. Ele é de uso único.';
 }
 
-function callAppsScript(action, params) {
-  if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.indexOf('COLE_AQUI') === 0) {
-    return Promise.reject(new Error('Configure a URL do Apps Script em app.js antes de publicar no Netlify.'));
+async function callBackend(action, params) {
+  const url = new URL(BACKEND_PROXY_URL, window.location.origin);
+  url.searchParams.set('action', action);
+
+  Object.keys(params || {}).forEach((key) => {
+    url.searchParams.set(key, params[key]);
+  });
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json'
+    }
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error((payload && payload.message) || 'Não foi possível comunicar com o backend.');
   }
 
-  return new Promise((resolve, reject) => {
-    const callbackName = `jsonp_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const script = document.createElement('script');
-    const url = new URL(APPS_SCRIPT_URL);
-    url.searchParams.set('action', action);
-    url.searchParams.set('callback', callbackName);
-
-    Object.keys(params || {}).forEach((key) => {
-      url.searchParams.set(key, params[key]);
-    });
-
-    const timeoutId = setTimeout(() => {
-      cleanup();
-      reject(new Error('Tempo esgotado ao comunicar com o backend.'));
-    }, 30000);
-
-    window[callbackName] = (response) => {
-      cleanup();
-      resolve(response);
-    };
-
-    script.onerror = () => {
-      cleanup();
-      reject(new Error('Não foi possível comunicar com o backend.'));
-    };
-
-    function cleanup() {
-      clearTimeout(timeoutId);
-      delete window[callbackName];
-      script.remove();
-    }
-
-    script.src = url.toString();
-    document.body.appendChild(script);
-  });
+  return payload;
 }
 
 function formatSeconds(totalSeconds) {

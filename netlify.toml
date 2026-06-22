@@ -1,0 +1,3 @@
+[build]
+  publish = "outputs/netlify-frontend"
+  functions = "outputs/netlify-frontend/netlify/functions"

@@ -12,17 +12,19 @@ O backend continua no Google Apps Script. O site conversa com ele por chamadas J
 
 ## Configuração obrigatória
 
-Antes de publicar, abra `app.js` e substitua:
+Antes de publicar, configure uma variável de ambiente no Netlify:
 
-```js
-const APPS_SCRIPT_URL = 'COLE_AQUI_A_URL_DO_APPS_SCRIPT_EXEC';
+```text
+APPS_SCRIPT_URL
 ```
 
-pela URL publicada do Apps Script, terminando em `/exec`:
+O valor deve ser a URL publicada do Apps Script, terminando em `/exec`:
 
-```js
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/SEU_DEPLOYMENT_ID/exec';
+```text
+https://script.google.com/macros/s/SEU_DEPLOYMENT_ID/exec
 ```
+
+Essa URL não fica mais no frontend. Ela fica apenas no ambiente server-side do Netlify.
 
 ## O que continua no Apps Script
 
@@ -34,21 +36,20 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/SEU_DEPLOYMENT_ID/ex
 
 ## Deploy no Netlify
 
-No Netlify, publique esta pasta:
+Se o repositório contém a estrutura completa do projeto, use o `netlify.toml` da raiz e deixe o Netlify detectar a configuração.
 
-```text
-outputs/netlify-frontend
-```
-
-Se usar GitHub, a configuração é:
+Configuração equivalente:
 
 ```text
 Build command: deixar vazio
 Publish directory: outputs/netlify-frontend
+Functions directory: outputs/netlify-frontend/netlify/functions
 ```
 
-Se o repositório tiver apenas os arquivos desta pasta na raiz, use:
+Se o repositório tiver apenas os arquivos desta pasta na raiz, use o `netlify.toml` daqui:
 
 ```text
+Build command: deixar vazio
 Publish directory: .
+Functions directory: netlify/functions
 ```
