@@ -108,13 +108,12 @@ function doGet(e) {
     });
   }
 
-  return renderHtml_('Index', {
-    appTitle: 'Aulas gravadas',
-    lessons: getPublicLessons_(),
-    tokenTtlMinutes: CONFIG.TOKEN_TTL_MINUTES,
-    organizationName: CONFIG.ORGANIZATION_NAME,
-    logoUrl: CONFIG.LOGO_URL
-  });
+  return ContentService
+    .createTextOutput(JSON.stringify({
+      ok: true,
+      message: 'Backend do Instituto MILES ativo.'
+    }))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function handleApiGet_(e) {
