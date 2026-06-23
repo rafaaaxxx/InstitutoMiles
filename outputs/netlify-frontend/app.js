@@ -90,23 +90,48 @@ function bindCertificateForm() {
       return;
     }
 
+    const cpf = certificateForm.elements.certificateCpf.value;
     certificateForm.querySelector('button').disabled = true;
-    certificateStatus.textContent = 'Verificando presenças e gerando o PDF...';
+    certificateStatus.textContent = 'Verificando progresso...';
 
-    callBackend('createCertificate', {
-      cpf: certificateForm.elements.certificateCpf.value
-    })
+    callBackend('getCertificateProgress', { cpf })
+      .then((progress) => {
+        const completedLessons = Number(progress.completedLessons || 0);
+        const requiredLessons = Number(progress.requiredLessons || appConfig?.certificateRequiredLessons || 3);
+
+        if (progress.alreadyIssued && progress.pdfUrl) {
+          showCertificateResult(progress, completedLessons);
+          return null;
+        }
+
+        if (completedLessons < requiredLessons) {
+          certificateStatus.textContent = progress.message || `Progresso: ${completedLessons} de ${requiredLessons} aulas concluídas.`;
+          certificateResult.hidden = false;
+          certificateResult.innerHTML = `
+            <h3>Certificado ainda não disponível</h3>
+            <p>CPF: ${escapeHtml(progress.cpf || cpf)} · Progresso: ${completedLessons} de ${requiredLessons} aulas concluídas.</p>
+            <p>Conclua pelo menos ${requiredLessons} aulas para emitir o certificado em PDF.</p>
+          `;
+          return null;
+        }
+
+        certificateStatus.textContent = 'Progresso confirmado. Gerando o PDF...';
+        return callBackend('createCertificate', { cpf });
+      })
       .then((response) => {
-        certificateForm.querySelector('button').disabled = false;
+        if (!response) {
+          return;
+        }
+
         if (!response.ok) {
-          if (response.reason === 'INSUFFICIENT_ATTENDANCE' || response.completedLessons !== undefined || response.requiredLessons !== undefined) {
-            const completedLessons = Number(response.completedLessons || 0);
-            const requiredLessons = Number(response.requiredLessons || appConfig?.certificateRequiredLessons || 3);
-            certificateStatus.textContent = response.message;
+          const completedLessons = Number(response.completedLessons || 0);
+          const requiredLessons = Number(response.requiredLessons || appConfig?.certificateRequiredLessons || 3);
+          if (response.reason === 'INSUFFICIENT_ATTENDANCE') {
+            certificateStatus.textContent = response.message || `Progresso: ${completedLessons} de ${requiredLessons} aulas concluídas.`;
             certificateResult.hidden = false;
             certificateResult.innerHTML = `
               <h3>Certificado ainda não disponível</h3>
-              <p>CPF: ${escapeHtml(response.cpf || certificateForm.elements.certificateCpf.value)} · Progresso: ${completedLessons} de ${requiredLessons} aulas concluídas.</p>
+              <p>CPF: ${escapeHtml(response.cpf || cpf)} · Progresso: ${completedLessons} de ${requiredLessons} aulas concluídas.</p>
               <p>Conclua pelo menos ${requiredLessons} aulas para emitir o certificado em PDF.</p>
             `;
             return;
@@ -115,20 +140,25 @@ function bindCertificateForm() {
           throw new Error(response.message || 'Não foi possível emitir o certificado.');
         }
 
-        certificateStatus.textContent = response.message;
-        certificateResult.hidden = false;
-        const completedLessons = Number(response.completedLessons || 0);
-        certificateResult.innerHTML = `
-          <h3>${escapeHtml(response.name)}</h3>
-          <p>CPF: ${escapeHtml(response.cpf)} · Aulas concluídas: ${completedLessons}</p>
-          <a class="certificate-link" target="_blank" rel="noopener" href="${response.pdfUrl}">Abrir certificado em PDF</a>
-        `;
+        showCertificateResult(response, Number(response.completedLessons || 0));
       })
       .catch((error) => {
-        certificateForm.querySelector('button').disabled = false;
         certificateStatus.textContent = error.message || 'Não foi possível emitir o certificado.';
+      })
+      .finally(() => {
+        certificateForm.querySelector('button').disabled = false;
       });
   });
+}
+
+function showCertificateResult(response, completedLessons) {
+  certificateStatus.textContent = response.message;
+  certificateResult.hidden = false;
+  certificateResult.innerHTML = `
+    <h3>${escapeHtml(response.name)}</h3>
+    <p>CPF: ${escapeHtml(response.cpf)} · Aulas concluídas: ${completedLessons}</p>
+    <a class="certificate-link" target="_blank" rel="noopener" href="${response.pdfUrl}">Abrir certificado em PDF</a>
+  `;
 }
 function renderLessonListItem(lesson) {
   const node = listTemplate.content.cloneNode(true);
@@ -431,6 +461,7 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
 
 
 
