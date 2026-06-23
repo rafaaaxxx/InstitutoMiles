@@ -99,13 +99,15 @@ function bindCertificateForm() {
       .then((response) => {
         certificateForm.querySelector('button').disabled = false;
         if (!response.ok) {
-          if (response.reason === 'INSUFFICIENT_ATTENDANCE') {
+          if (response.reason === 'INSUFFICIENT_ATTENDANCE' || response.completedLessons !== undefined || response.requiredLessons !== undefined) {
+            const completedLessons = Number(response.completedLessons || 0);
+            const requiredLessons = Number(response.requiredLessons || appConfig?.certificateRequiredLessons || 3);
             certificateStatus.textContent = response.message;
             certificateResult.hidden = false;
             certificateResult.innerHTML = `
               <h3>Certificado ainda não disponível</h3>
-              <p>CPF: ${escapeHtml(response.cpf)} · Progresso: ${response.completedLessons} de ${response.requiredLessons} aulas concluídas.</p>
-              <p>Conclua pelo menos ${response.requiredLessons} aulas para emitir o certificado em PDF.</p>
+              <p>CPF: ${escapeHtml(response.cpf || certificateForm.elements.certificateCpf.value)} · Progresso: ${completedLessons} de ${requiredLessons} aulas concluídas.</p>
+              <p>Conclua pelo menos ${requiredLessons} aulas para emitir o certificado em PDF.</p>
             `;
             return;
           }
@@ -115,9 +117,10 @@ function bindCertificateForm() {
 
         certificateStatus.textContent = response.message;
         certificateResult.hidden = false;
+        const completedLessons = Number(response.completedLessons || 0);
         certificateResult.innerHTML = `
           <h3>${escapeHtml(response.name)}</h3>
-          <p>CPF: ${escapeHtml(response.cpf)} · Aulas concluídas: ${response.completedLessons}</p>
+          <p>CPF: ${escapeHtml(response.cpf)} · Aulas concluídas: ${completedLessons}</p>
           <a class="certificate-link" target="_blank" rel="noopener" href="${response.pdfUrl}">Abrir certificado em PDF</a>
         `;
       })

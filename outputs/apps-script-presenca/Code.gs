@@ -131,6 +131,12 @@ function handleApiGet_(e) {
       }));
     }
 
+    if (action === 'getCertificateProgress') {
+      return makeApiResponse_(e, getCertificateProgress({
+        cpf: e.parameter.cpf
+      }));
+    }
+
     if (action === 'getPublicConfig') {
       return makeApiResponse_(e, {
         ok: true,
@@ -384,6 +390,41 @@ function createCertificate(payload) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function getCertificateProgress(payload) {
+  setupSpreadsheet();
+
+  const cpf = normalizeCpf_(payload && payload.cpf);
+  if (!isValidCpf_(cpf)) {
+    throw new Error('CPF inv\u00e1lido.');
+  }
+
+  const existingCertificate = getExistingCertificate_(cpf);
+  if (existingCertificate) {
+    return {
+      ok: true,
+      alreadyIssued: true,
+      name: existingCertificate.name,
+      cpf: formatCpf_(cpf),
+      completedLessons: Number(existingCertificate.completedLessons || 0),
+      requiredLessons: CONFIG.CERTIFICATE_REQUIRED_LESSONS,
+      documentUrl: existingCertificate.documentUrl,
+      pdfUrl: existingCertificate.pdfUrl,
+      message: 'Certificado j\u00e1 emitido para este CPF.'
+    };
+  }
+
+  const attendanceSummary = getAttendanceSummaryByCpf_(cpf);
+  return {
+    ok: attendanceSummary.completedLessons >= CONFIG.CERTIFICATE_REQUIRED_LESSONS,
+    reason: attendanceSummary.completedLessons >= CONFIG.CERTIFICATE_REQUIRED_LESSONS ? 'READY' : 'INSUFFICIENT_ATTENDANCE',
+    name: attendanceSummary.name,
+    cpf: formatCpf_(cpf),
+    completedLessons: Number(attendanceSummary.completedLessons || 0),
+    requiredLessons: CONFIG.CERTIFICATE_REQUIRED_LESSONS,
+    message: 'Este CPF possui presen\u00e7a em ' + Number(attendanceSummary.completedLessons || 0) + ' de ' + CONFIG.CERTIFICATE_REQUIRED_LESSONS + ' aulas necess\u00e1rias para emitir o certificado.'
+  };
 }
 
 function getPublicLessons_() {
