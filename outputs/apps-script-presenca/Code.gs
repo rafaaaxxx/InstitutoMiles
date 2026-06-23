@@ -1,6 +1,6 @@
 const CONFIG = {
   SPREADSHEET_ID: '1MSYMUrKm-Z9jnmCrXd8zwpJrlzmA_2bpE8NZAMAXwH0',
-  WEB_APP_URL: '',
+  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbyfPc6rxXnnf5RaofztEh9P03wmhRkC9D4Lzf0yNUrm--64uRzA9uMUMoHakhGY9Yto/exec',
   TOKEN_TTL_MINUTES: 60,
   PLAYER_MODE: 'youtube',
   WATCH_PERCENT_REQUIRED: 0.95,
@@ -14,41 +14,46 @@ const CONFIG = {
   LESSONS: [
     {
       id: 'aula-1',
-      title: 'Aula 1',
-      description: 'AULA 1',
-      youtubeVideoId: 'Rg-EJ8IFU8w',
-      durationLabel: '04:53',
-      watchSecondsBeforeQr: 293
+      title: 'Aula 1 - Introdução',
+      description: 'Assista a aula introdutória do Miles Membership',
+      youtubeVideoId: 'r48W0BJHYpg',
+      durationLabel: '13:33',
+      watchSecondsBeforeQr: 813
     },
     {
       id: 'aula-2',
-      title: 'Aula 2',
-      description: 'AULA 2',
-      youtubeVideoId: '3LriRpfkdWE',
-      durationLabel: '05:55',
-      watchSecondsBeforeQr: 355
+      title: 'Aula 2 - Conhecimento',
+      description: 'Descubra as competências do empreendedor',
+      youtubeVideoId: 'gCvXH4J7dOw',
+      durationLabel: '07:05',
+      watchSecondsBeforeQr: 425
     },
     {
       id: 'aula-3',
-      title: 'Aula 3',
-      description: 'Descrição breve da aula 3.',
-      youtubeVideoId: 'Oj7P_fF9q64',
-      durationLabel: '02:01',
-      watchSecondsBeforeQr: 121
+      title: 'Aula 3 - Inovação',
+      description: 'Descubra mais sobre o significado de inovação',
+      youtubeVideoId: 'f4nH93q8zV4',
+      durationLabel: '14:28',
+      watchSecondsBeforeQr: 868
     },
     {
       id: 'aula-4',
-      title: 'Aula 4',
-      description: 'Descrição breve da aula 4.',
-      youtubeVideoId: '41iGTPKYFI4',
-      durationLabel: '04:59',
-      watchSecondsBeforeQr: 299
+      title: 'Aula 4 - Tomada de decisão',
+      description: 'Em nossa última aula, entenda a importância da tomada de decisão.',
+      youtubeVideoId: 'ZCYpyVTg7HM',
+      durationLabel: '10:48',
+      watchSecondsBeforeQr: 648
     }
   ]
 };
 
+const LESSONS_BY_ID = CONFIG.LESSONS.reduce(function(index, lesson) {
+  index[lesson.id] = lesson;
+  return index;
+}, {});
+
 const SHEETS = {
-  ATTENDANCE: 'Presenças',
+  ATTENDANCE: 'Presen\u00e7as',
   TOKENS: 'Tokens',
   CERTIFICATES: 'Certificados'
 };
@@ -85,8 +90,6 @@ const HEADERS = {
 };
 
 function doGet(e) {
-  setupSpreadsheet();
-
   const action = e && e.parameter ? String(e.parameter.action || '') : '';
   if (action) {
     return handleApiGet_(e);
@@ -94,8 +97,9 @@ function doGet(e) {
 
   const token = e && e.parameter ? String(e.parameter.token || '') : '';
   if (token) {
+    setupSpreadsheet();
     return renderHtml_('Register', {
-      appTitle: 'Registro de presença',
+      appTitle: 'Registro de presen\u00e7a',
       token: token,
       organizationName: CONFIG.ORGANIZATION_NAME,
       privacyContactEmail: CONFIG.PRIVACY_CONTACT_EMAIL,
@@ -138,11 +142,11 @@ function handleApiGet_(e) {
       });
     }
 
-    throw new Error('Ação não encontrada.');
+    throw new Error('A\u00e7\u00e3o n\u00e3o encontrada.');
   } catch (error) {
     return makeApiResponse_(e, {
       ok: false,
-      message: error.message || 'Não foi possível concluir a solicitação.'
+      message: error.message || 'N\u00e3o foi poss\u00edvel concluir a solicita\u00e7\u00e3o.'
     });
   }
 }
@@ -183,7 +187,7 @@ function createAttendanceToken(lessonId) {
 
   const lesson = getLessonById_(lessonId);
   if (!lesson) {
-    throw new Error('Aula não encontrada.');
+    throw new Error('Aula n\u00e3o encontrada.');
   }
 
   const now = new Date();
@@ -236,24 +240,24 @@ function submitAttendance(payload) {
       throw new Error('Token ausente.');
     }
     if (!isValidCpf_(cpf)) {
-    throw new Error('CPF inválido.');
+    throw new Error('CPF inv\u00e1lido.');
     }
     if (fullName.length < 5 || fullName.indexOf(' ') === -1) {
       throw new Error('Informe o nome completo.');
     }
     if (!isValidEmail_(email)) {
-      throw new Error('Email inválido.');
+      throw new Error('Email inv\u00e1lido.');
     }
     if (!lgpdAccepted) {
-      throw new Error('É necessário confirmar ciência sobre o tratamento dos dados pessoais.');
+      throw new Error('\u00c9 necess\u00e1rio confirmar ci\u00eancia sobre o tratamento dos dados pessoais.');
     }
 
     const tokenRecord = getTokenRecord_(token);
     if (!tokenRecord) {
-      throw new Error('QR code inválido.');
+      throw new Error('QR code inv\u00e1lido.');
     }
     if (String(tokenRecord.usado).toLowerCase() === 'true') {
-      throw new Error('Este QR code já foi utilizado.');
+      throw new Error('Este QR code j\u00e1 foi utilizado.');
     }
 
     const now = new Date();
@@ -262,7 +266,7 @@ function submitAttendance(payload) {
     }
 
     if (attendanceExists_(cpf, tokenRecord.aula_id)) {
-      throw new Error('Este CPF já registrou presença nesta aula.');
+      throw new Error('Este CPF j\u00e1 registrou presen\u00e7a nesta aula.');
     }
 
     const attendanceSheet = getSheet_(SHEETS.ATTENDANCE);
@@ -284,7 +288,7 @@ function submitAttendance(payload) {
 
     return {
       ok: true,
-      message: 'Presença registrada com sucesso.',
+      message: 'Presen\u00e7a registrada com sucesso.',
       lessonTitle: tokenRecord.aula_titulo
     };
   } finally {
@@ -297,7 +301,7 @@ function createCertificate(payload) {
 
   const cpf = normalizeCpf_(payload && payload.cpf);
   if (!isValidCpf_(cpf)) {
-    throw new Error('CPF inválido.');
+    throw new Error('CPF inv\u00e1lido.');
   }
 
   if (!CONFIG.CERTIFICATE_TEMPLATE_DOC_ID || CONFIG.CERTIFICATE_TEMPLATE_DOC_ID.indexOf('COLE_AQUI') === 0) {
@@ -318,13 +322,13 @@ function createCertificate(payload) {
         completedLessons: existingCertificate.completedLessons,
         documentUrl: existingCertificate.documentUrl,
         pdfUrl: existingCertificate.pdfUrl,
-        message: 'Certificado já emitido para este CPF.'
+        message: 'Certificado j\u00e1 emitido para este CPF.'
       };
     }
 
     const attendanceSummary = getAttendanceSummaryByCpf_(cpf);
     if (attendanceSummary.completedLessons < CONFIG.CERTIFICATE_REQUIRED_LESSONS) {
-      throw new Error('Este CPF ainda não possui presença registrada em pelo menos 3 aulas.');
+      throw new Error('Este CPF ainda n\u00e3o possui presen\u00e7a registrada em pelo menos 3 aulas.');
     }
 
     const certificateName = sanitizeFileName_('Certificado - ' + attendanceSummary.name + ' - ' + formatCpf_(cpf));
@@ -393,7 +397,7 @@ function getAttendanceSummaryByCpf_(cpf) {
   const sheet = getSheet_(SHEETS.ATTENDANCE);
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    throw new Error('Este CPF ainda não possui presença registrada.');
+    throw new Error('Este CPF ainda n\u00e3o possui presen\u00e7a registrada.');
   }
 
   const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.ATTENDANCE.length).getValues();
@@ -413,7 +417,7 @@ function getAttendanceSummaryByCpf_(cpf) {
     });
 
   if (!studentRows.length) {
-    throw new Error('Este CPF ainda não possui presença registrada.');
+    throw new Error('Este CPF ainda n\u00e3o possui presen\u00e7a registrada.');
   }
 
   const completedLessonIds = {};
@@ -479,9 +483,7 @@ function createCertificatePdf_(certificateFile, certificateName) {
 }
 
 function getLessonById_(lessonId) {
-  return CONFIG.LESSONS.find(function(lesson) {
-    return lesson.id === lessonId;
-  });
+  return LESSONS_BY_ID[String(lessonId || '')] || null;
 }
 
 function buildDriveVideoUrl_(fileId) {
@@ -506,14 +508,14 @@ function getTokenStatus_(token) {
   if (!record) {
     return {
       ok: false,
-      message: 'QR code inválido.'
+      message: 'QR code inv\u00e1lido.'
     };
   }
 
   if (String(record.usado).toLowerCase() === 'true') {
     return {
       ok: false,
-      message: 'Este QR code já foi utilizado.'
+      message: 'Este QR code j\u00e1 foi utilizado.'
     };
   }
 
@@ -631,7 +633,7 @@ function isValidCpf_(cpf) {
 
 function ensureSheet_(spreadsheet, sheetName, headers) {
   let sheet = spreadsheet.getSheetByName(sheetName);
-  if (!sheet && sheetName === 'Presenças') {
+  if (!sheet && sheetName === 'Presen\u00e7as') {
     const legacySheet = spreadsheet.getSheetByName('Presencas');
     if (legacySheet) {
       legacySheet.setName(sheetName);
