@@ -48,8 +48,7 @@ async function initialize() {
 }
 
 function applyConfig(config) {
-  brandLogo.src = config.logoUrl;
-  brandLogo.alt = config.organizationName;
+  brandLogo.alt = config.organizationName || 'Instituto MILES';
   tokenBadge.textContent = `QR válido por ${config.tokenTtlMinutes} min`;
 }
 
