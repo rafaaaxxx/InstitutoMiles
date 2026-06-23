@@ -117,7 +117,7 @@ function doGet(e) {
 }
 
 function handleApiGet_(e) {
-  const action = String(e.parameter.action || '');
+  const action = normalizeActionName_(e.parameter.action);
 
   try {
     if (action === 'createAttendanceToken') {
@@ -147,13 +147,29 @@ function handleApiGet_(e) {
       });
     }
 
-    throw new Error('A\u00e7\u00e3o n\u00e3o encontrada.');
+    throw new Error('A\u00e7\u00e3o n\u00e3o encontrada: ' + action + '.');
   } catch (error) {
     return makeApiResponse_(e, {
       ok: false,
       message: error.message || 'N\u00e3o foi poss\u00edvel concluir a solicita\u00e7\u00e3o.'
     });
   }
+}
+
+function normalizeActionName_(action) {
+  const normalizedAction = String(action || '').trim();
+  const aliases = {
+    progress: 'getCertificateProgress',
+    getProgress: 'getCertificateProgress',
+    certificateProgress: 'getCertificateProgress',
+    getCertificadoProgresso: 'getCertificateProgress',
+    emitirCertificado: 'createCertificate',
+    certificado: 'createCertificate',
+    aulas: 'getPublicConfig',
+    config: 'getPublicConfig'
+  };
+
+  return aliases[normalizedAction] || normalizedAction;
 }
 
 function makeApiResponse_(e, payload) {
