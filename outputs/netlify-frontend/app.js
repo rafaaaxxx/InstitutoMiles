@@ -89,7 +89,12 @@ function bindCertificateForm() {
       return;
     }
 
-    const cpf = certificateForm.elements.certificateCpf.value;
+    const cpf = getCpfDigits(certificateForm.elements.certificateCpf.value);
+    if (cpf.length !== 11) {
+      certificateStatus.textContent = 'Informe um CPF com 11 dígitos.';
+      return;
+    }
+
     certificateForm.querySelector('button').disabled = true;
     certificateStatus.textContent = 'Verificando progresso...';
 
@@ -445,11 +450,15 @@ function formatSeconds(totalSeconds) {
 }
 
 function formatCpf(value) {
-  const digits = value.replace(/\D/g, '').slice(0, 11);
+  const digits = getCpfDigits(value).slice(0, 11);
   return digits
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d)/, '$1.$2')
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+function getCpfDigits(value) {
+  return String(value || '').replace(/\D/g, '');
 }
 
 function escapeHtml(value) {

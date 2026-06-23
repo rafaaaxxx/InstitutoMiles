@@ -198,9 +198,14 @@ function sanitizeCallback_(callback) {
 
 function setupSpreadsheet() {
   const spreadsheet = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
-  ensureSheet_(spreadsheet, SHEETS.ATTENDANCE, HEADERS.ATTENDANCE);
+  const attendanceSheet = ensureSheet_(spreadsheet, SHEETS.ATTENDANCE, HEADERS.ATTENDANCE);
   ensureSheet_(spreadsheet, SHEETS.TOKENS, HEADERS.TOKENS);
-  ensureSheet_(spreadsheet, SHEETS.CERTIFICATES, HEADERS.CERTIFICATES);
+  const certificatesSheet = ensureSheet_(spreadsheet, SHEETS.CERTIFICATES, HEADERS.CERTIFICATES);
+
+  formatTextColumns_(attendanceSheet, [4]);
+  formatTextColumns_(certificatesSheet, [2]);
+  repairCpfTextColumn_(attendanceSheet, 4);
+  repairCpfTextColumn_(certificatesSheet, 2);
 }
 
 function createAttendanceToken(lessonId) {
@@ -251,7 +256,7 @@ function submitAttendance(payload) {
 
   try {
     const token = String(payload.token || '').trim();
-    const cpf = normalizeCpf_(payload.cpf || '');
+    const cpf = normalizeSubmittedCpf_(payload.cpf);
     const fullName = normalizeText_(payload.fullName || '');
     const email = normalizeEmail_(payload.email || '');
     const lgpdAccepted = payload.lgpdAccepted === true || payload.lgpdAccepted === 'true';
@@ -291,7 +296,7 @@ function submitAttendance(payload) {
     }
 
     const attendanceSheet = getSheet_(SHEETS.ATTENDANCE);
-    attendanceSheet.appendRow([
+    appendRowWithTextColumns_(attendanceSheet, [
       now,
       tokenRecord.aula_id,
       tokenRecord.aula_titulo,
@@ -301,7 +306,7 @@ function submitAttendance(payload) {
       true,
       token,
       userAgent
-    ]);
+    ], [4]);
 
     const tokenSheet = getSheet_(SHEETS.TOKENS);
     tokenSheet.getRange(tokenRecord.row, 6).setValue(true);
@@ -320,7 +325,7 @@ function submitAttendance(payload) {
 function createCertificate(payload) {
   setupSpreadsheet();
 
-  const cpf = normalizeCpf_(payload && payload.cpf);
+  const cpf = normalizeSubmittedCpf_(payload && payload.cpf);
   if (!isValidCpf_(cpf)) {
     throw new Error('CPF inv\u00e1lido.');
   }
@@ -382,14 +387,14 @@ function createCertificate(payload) {
 
     const documentUrl = certificateFile.getUrl();
     const pdfUrl = pdfFile.getUrl();
-    getSheet_(SHEETS.CERTIFICATES).appendRow([
+    appendRowWithTextColumns_(getSheet_(SHEETS.CERTIFICATES), [
       new Date(),
       cpf,
       attendanceSummary.name,
       attendanceSummary.completedLessons,
       documentUrl,
       pdfUrl
-    ]);
+    ], [2]);
 
     return {
       ok: true,
@@ -410,7 +415,7 @@ function createCertificate(payload) {
 function getCertificateProgress(payload) {
   setupSpreadsheet();
 
-  const cpf = normalizeCpf_(payload && payload.cpf);
+  const cpf = normalizeSubmittedCpf_(payload && payload.cpf);
   if (!isValidCpf_(cpf)) {
     throw new Error('CPF inv\u00e1lido.');
   }
@@ -476,7 +481,7 @@ function getAttendanceSummaryByCpf_(cpf) {
         date: row[0],
         lessonId: String(row[1] || ''),
         lessonTitle: String(row[2] || ''),
-        cpf: normalizeCpf_(row[3]),
+        cpf: normalizeStoredCpf_(row[3]),
         name: normalizeText_(row[4] || ''),
         email: normalizeEmail_(row[5] || '')
       };
@@ -519,7 +524,7 @@ function getExistingCertificate_(cpf) {
 
   const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.CERTIFICATES.length).getValues();
   for (let i = 0; i < rows.length; i++) {
-    if (normalizeCpf_(rows[i][1]) === cpf && (rows[i][4] || rows[i][5])) {
+    if (normalizeStoredCpf_(rows[i][1]) === cpf && (rows[i][4] || rows[i][5])) {
       return {
         name: normalizeText_(rows[i][2]),
         completedLessons: Number(rows[i][3] || 0),
@@ -640,12 +645,34 @@ function attendanceExists_(cpf, lessonId) {
 
   const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.ATTENDANCE.length).getValues();
   return rows.some(function(row) {
-    return String(row[1]) === String(lessonId) && normalizeCpf_(row[3]) === cpf;
+    return String(row[1]) === String(lessonId) && normalizeStoredCpf_(row[3]) === cpf;
   });
 }
 
 function normalizeCpf_(cpf) {
   return String(cpf || '').replace(/\D/g, '');
+}
+
+function normalizeSubmittedCpf_(cpf) {
+  if (typeof cpf === 'number') {
+    throw new Error('CPF recebido como número. Envie o CPF como texto para preservar zeros à esquerda.');
+  }
+
+  const digits = normalizeCpf_(cpf);
+  if (digits.length !== 11) {
+    throw new Error('CPF deve conter 11 dígitos.');
+  }
+
+  return digits;
+}
+
+function normalizeStoredCpf_(cpf) {
+  const digits = normalizeCpf_(cpf);
+  if (digits.length > 0 && digits.length < 11) {
+    return digits.padStart(11, '0');
+  }
+
+  return digits;
 }
 
 function formatCpf_(cpf) {
@@ -725,6 +752,41 @@ function ensureSheet_(spreadsheet, sheetName, headers) {
   }
 
   return sheet;
+}
+
+function formatTextColumns_(sheet, columnNumbers) {
+  columnNumbers.forEach(function(columnNumber) {
+    sheet.getRange(1, columnNumber, sheet.getMaxRows(), 1).setNumberFormat('@');
+  });
+}
+
+function repairCpfTextColumn_(sheet, columnNumber) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    return;
+  }
+
+  const range = sheet.getRange(2, columnNumber, lastRow - 1, 1);
+  const values = range.getValues();
+  const repairedValues = values.map(function(row) {
+    const cpf = normalizeStoredCpf_(row[0]);
+    return [cpf.length === 11 ? cpf : row[0]];
+  });
+
+  range.setNumberFormat('@');
+  range.setValues(repairedValues);
+}
+
+function appendRowWithTextColumns_(sheet, values, textColumnNumbers) {
+  const nextRow = sheet.getLastRow() + 1;
+  const preparedValues = values.slice();
+
+  textColumnNumbers.forEach(function(columnNumber) {
+    sheet.getRange(nextRow, columnNumber).setNumberFormat('@');
+    preparedValues[columnNumber - 1] = String(preparedValues[columnNumber - 1] || '');
+  });
+
+  sheet.getRange(nextRow, 1, 1, preparedValues.length).setValues([preparedValues]);
 }
 
 function getSheet_(sheetName) {
