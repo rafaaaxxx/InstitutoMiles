@@ -1,4 +1,4 @@
-const BACKEND_PROXY_URL = '/.netlify/functions/apps-script-proxy';
+﻿const BACKEND_PROXY_URL = '/.netlify/functions/apps-script-proxy';
 
 let appConfig = null;
 const generatedTokens = new Map();
@@ -99,6 +99,17 @@ function bindCertificateForm() {
       .then((response) => {
         certificateForm.querySelector('button').disabled = false;
         if (!response.ok) {
+          if (response.reason === 'INSUFFICIENT_ATTENDANCE') {
+            certificateStatus.textContent = response.message;
+            certificateResult.hidden = false;
+            certificateResult.innerHTML = `
+              <h3>Certificado ainda não disponível</h3>
+              <p>CPF: ${escapeHtml(response.cpf)} · Progresso: ${response.completedLessons} de ${response.requiredLessons} aulas concluídas.</p>
+              <p>Conclua pelo menos ${response.requiredLessons} aulas para emitir o certificado em PDF.</p>
+            `;
+            return;
+          }
+
           throw new Error(response.message || 'Não foi possível emitir o certificado.');
         }
 
@@ -116,7 +127,6 @@ function bindCertificateForm() {
       });
   });
 }
-
 function renderLessonListItem(lesson) {
   const node = listTemplate.content.cloneNode(true);
   const item = node.querySelector('.lesson-list-item');
@@ -418,3 +428,6 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+
+

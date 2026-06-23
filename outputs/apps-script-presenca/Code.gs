@@ -8,7 +8,7 @@ const CONFIG = {
   ORGANIZATION_NAME: 'Instituto MILES',
   PRIVACY_CONTACT_EMAIL: 'privacidade@exemplo.com',
   CERTIFICATE_TEMPLATE_DOC_ID: '1BtHsvxpLrOC-Si2REoftyldV_Gb1s90Ys8XFdWYIqeg',
-  CERTIFICATE_OUTPUT_FOLDER_ID: '',
+  CERTIFICATE_OUTPUT_FOLDER_ID: '1KtzhYP7pGJ3XqHfnt5Je_CptDHTnG-dk',
   CERTIFICATE_REQUIRED_LESSONS: 3,
   SHARE_CERTIFICATE_WITH_LINK: true,
   LESSONS: [
@@ -320,6 +320,7 @@ function createCertificate(payload) {
         name: existingCertificate.name,
         cpf: formatCpf_(cpf),
         completedLessons: existingCertificate.completedLessons,
+        requiredLessons: CONFIG.CERTIFICATE_REQUIRED_LESSONS,
         documentUrl: existingCertificate.documentUrl,
         pdfUrl: existingCertificate.pdfUrl,
         message: 'Certificado j\u00e1 emitido para este CPF.'
@@ -328,7 +329,15 @@ function createCertificate(payload) {
 
     const attendanceSummary = getAttendanceSummaryByCpf_(cpf);
     if (attendanceSummary.completedLessons < CONFIG.CERTIFICATE_REQUIRED_LESSONS) {
-      throw new Error('Este CPF ainda n\u00e3o possui presen\u00e7a registrada em pelo menos 3 aulas.');
+      return {
+        ok: false,
+        reason: 'INSUFFICIENT_ATTENDANCE',
+        name: attendanceSummary.name,
+        cpf: formatCpf_(cpf),
+        completedLessons: attendanceSummary.completedLessons,
+        requiredLessons: CONFIG.CERTIFICATE_REQUIRED_LESSONS,
+        message: 'Este CPF possui presen\u00e7a em ' + attendanceSummary.completedLessons + ' de ' + CONFIG.CERTIFICATE_REQUIRED_LESSONS + ' aulas necess\u00e1rias para emitir o certificado.'
+      };
     }
 
     const certificateName = sanitizeFileName_('Certificado - ' + attendanceSummary.name + ' - ' + formatCpf_(cpf));
@@ -367,6 +376,7 @@ function createCertificate(payload) {
       name: attendanceSummary.name,
       cpf: formatCpf_(cpf),
       completedLessons: attendanceSummary.completedLessons,
+      requiredLessons: CONFIG.CERTIFICATE_REQUIRED_LESSONS,
       documentUrl: documentUrl,
       pdfUrl: pdfUrl,
       message: 'Certificado em PDF emitido com sucesso.'
@@ -397,7 +407,10 @@ function getAttendanceSummaryByCpf_(cpf) {
   const sheet = getSheet_(SHEETS.ATTENDANCE);
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) {
-    throw new Error('Este CPF ainda n\u00e3o possui presen\u00e7a registrada.');
+    return {
+      name: '',
+      completedLessons: 0
+    };
   }
 
   const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.ATTENDANCE.length).getValues();
@@ -417,7 +430,10 @@ function getAttendanceSummaryByCpf_(cpf) {
     });
 
   if (!studentRows.length) {
-    throw new Error('Este CPF ainda n\u00e3o possui presen\u00e7a registrada.');
+    return {
+      name: '',
+      completedLessons: 0
+    };
   }
 
   const completedLessonIds = {};
