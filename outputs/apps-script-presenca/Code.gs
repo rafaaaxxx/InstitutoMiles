@@ -202,8 +202,6 @@ function setupSpreadsheet() {
   ensureSheet_(spreadsheet, SHEETS.TOKENS, HEADERS.TOKENS);
   const certificatesSheet = ensureSheet_(spreadsheet, SHEETS.CERTIFICATES, HEADERS.CERTIFICATES);
 
-  formatTextColumns_(attendanceSheet, [4]);
-  formatTextColumns_(certificatesSheet, [2]);
   repairCpfTextColumn_(attendanceSheet, 4);
   repairCpfTextColumn_(certificatesSheet, 2);
 }
@@ -474,7 +472,7 @@ function getAttendanceSummaryByCpf_(cpf) {
     };
   }
 
-  const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.ATTENDANCE.length).getValues();
+  const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.ATTENDANCE.length).getDisplayValues();
   const studentRows = rows
     .map(function(row) {
       return {
@@ -522,7 +520,7 @@ function getExistingCertificate_(cpf) {
     return null;
   }
 
-  const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.CERTIFICATES.length).getValues();
+  const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.CERTIFICATES.length).getDisplayValues();
   for (let i = 0; i < rows.length; i++) {
     if (normalizeStoredCpf_(rows[i][1]) === cpf && (rows[i][4] || rows[i][5])) {
       return {
@@ -643,7 +641,7 @@ function attendanceExists_(cpf, lessonId) {
     return false;
   }
 
-  const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.ATTENDANCE.length).getValues();
+  const rows = sheet.getRange(2, 1, lastRow - 1, HEADERS.ATTENDANCE.length).getDisplayValues();
   return rows.some(function(row) {
     return String(row[1]) === String(lessonId) && normalizeStoredCpf_(row[3]) === cpf;
   });
@@ -767,26 +765,49 @@ function repairCpfTextColumn_(sheet, columnNumber) {
   }
 
   const range = sheet.getRange(2, columnNumber, lastRow - 1, 1);
-  const values = range.getValues();
-  const repairedValues = values.map(function(row) {
+  const values = range.getDisplayValues();
+  values.forEach(function(row, index) {
     const cpf = normalizeStoredCpf_(row[0]);
-    return [cpf.length === 11 ? cpf : row[0]];
+    if (cpf.length === 11) {
+      writeForcedText_(sheet.getRange(index + 2, columnNumber), formatCpf_(cpf));
+    }
   });
-
-  range.setNumberFormat('@');
-  range.setValues(repairedValues);
 }
 
 function appendRowWithTextColumns_(sheet, values, textColumnNumbers) {
   const nextRow = sheet.getLastRow() + 1;
   const preparedValues = values.slice();
+  const textValues = {};
 
   textColumnNumbers.forEach(function(columnNumber) {
-    sheet.getRange(nextRow, columnNumber).setNumberFormat('@');
-    preparedValues[columnNumber - 1] = String(preparedValues[columnNumber - 1] || '');
+    textValues[columnNumber] = formatSheetTextValue_(preparedValues[columnNumber - 1]);
+    preparedValues[columnNumber - 1] = '';
   });
 
   sheet.getRange(nextRow, 1, 1, preparedValues.length).setValues([preparedValues]);
+  SpreadsheetApp.flush();
+
+  textColumnNumbers.forEach(function(columnNumber) {
+    writeForcedText_(sheet.getRange(nextRow, columnNumber), textValues[columnNumber]);
+  });
+}
+
+function formatSheetTextValue_(value) {
+  const digits = normalizeCpf_(value);
+  if (digits.length === 11) {
+    return formatCpf_(digits);
+  }
+
+  return String(value || '');
+}
+
+function writeForcedText_(range, value) {
+  range.clearContent();
+  range.setFormula('="' + escapeFormulaText_(String(value || '')) + '"');
+}
+
+function escapeFormulaText_(value) {
+  return value.replace(/"/g, '""');
 }
 
 function getSheet_(sheetName) {
